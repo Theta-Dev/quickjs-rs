@@ -628,7 +628,21 @@ fn test_global_setter() {
 
 #[cfg(feature = "chrono")]
 #[test]
-fn test_ut() {
+fn test_date_manual() {
+    let case = " ()(Sat, 01-Jan-2000)  Sat,   01-Jan-2000   08:00:00   UT ";
+    
+    let ctx = Context::new().unwrap();
+    let res = ctx
+    // '  Sat,   01   Jan   2000   08:00:00   UT  '
+        .eval(&format!(r#"new Date("{}")"#, case))
+        .unwrap();
+
+    dbg!(res);
+}
+
+#[cfg(feature = "chrono")]
+#[test]
+fn test_date_ut() {
     let test_cases_ut = vec![
         "Sat, 01-Jan-2000 08:00:00 UT",
         "Sat, 01 Jan 2000 08:00:00 UT",

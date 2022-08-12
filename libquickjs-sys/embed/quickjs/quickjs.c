@@ -48322,7 +48322,7 @@ static void string_skip_spaces_and_comments(JSString *sp, int *pp) {
         int nxt = *pp + 1;
 
         // interpret - before a number as a sign rather than a comment char
-        if (ch == '-' && nxt < sp->len && is_digit(string_get(sp, nxt))) {
+        if (ch == '-' && nesting == 0 && nxt < sp->len && is_digit(string_get(sp, nxt))) {
             break;
         }
         if (!is_space_like(ch)) {
@@ -48496,6 +48496,8 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
     
     sp = JS_VALUE_GET_STRING(s);
     p = 0;
+    string_skip_spaces_and_comments(sp, &p);
+
     if (p < sp->len && (((c = string_get(sp, p)) >= '0' && c <= '9') || c == '+' || c == '-')) {
         /* ISO format */
         /* year field can be negative */
@@ -48579,7 +48581,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                 if (p - word_start >= 3) {
                     month = find_abbrev(sp, word_start, month_names, 12);
                 }
-                string_skip_spaces_and_comments(sp, &p); // and comments
+                string_skip_spaces_and_comments(sp, &p);
                 word_start = p;
             } else {
                 p++;
@@ -48593,7 +48595,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
             month = find_abbrev(sp, word_start, month_names, 12);
         }
 
-        string_skip_spaces_and_comments(sp, &p); // and comments
+        string_skip_spaces_and_comments(sp, &p);
         if (sp->len <= p)
             goto done;
 
@@ -48640,7 +48642,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
             if (string_get(sp, p) == '-') {
                 p++;
             }
-            string_skip_spaces_and_comments(sp, &p); // and comments
+            string_skip_spaces_and_comments(sp, &p);
 
             if (string_get(sp, p) == ',') {
                 p++;
@@ -48669,6 +48671,8 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
             }
         }
 
+        string_skip_spaces_and_comments(sp, &p);
+
         if (year <= 0) {
             if (string_get_digits(sp, &p, &year))
                 goto done;
@@ -48689,7 +48693,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                 year = -1;
             } else if (is_space_like(string_get(sp, p))) {
                 p++;
-                string_skip_spaces_and_comments(sp, &p); // and comments
+                string_skip_spaces_and_comments(sp, &p);
             } else {
                 goto done;
             }
@@ -48736,7 +48740,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                     goto done;
                 }
 
-                string_skip_spaces_and_comments(sp, &p); // and comments
+                string_skip_spaces_and_comments(sp, &p);
 
                 if (string_eq_ignorecase(sp, p, "AM", 2)) {
                     if (hour > 12) {
@@ -48746,7 +48750,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                         hour = 0;
                     }
                     p += 2;
-                    string_skip_spaces_and_comments(sp, &p); // and comments
+                    string_skip_spaces_and_comments(sp, &p);
                 } else if (string_eq_ignorecase(sp, p, "PM", 2)) {
                     if (hour > 12) {
                         goto done;
@@ -48755,7 +48759,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                         hour += 12;
                     }
                     p += 2;
-                    string_skip_spaces_and_comments(sp, &p); // and comments
+                    string_skip_spaces_and_comments(sp, &p);
                 }
             }
         }

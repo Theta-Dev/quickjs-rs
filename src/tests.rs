@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryInto};
+
+#[cfg(feature = "chrono")]
+use chrono::{Date, DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
 use super::*;
 
@@ -621,4 +624,105 @@ fn test_global_setter() {
     let ctx = Context::new().unwrap();
     ctx.set_global("a", "a").unwrap();
     ctx.eval("a + 1").unwrap();
+}
+
+#[cfg(feature = "chrono")]
+#[test]
+fn test_ut() {
+    let test_cases_ut = vec![
+        "Sat, 01-Jan-2000 08:00:00 UT",
+        "Sat, 01 Jan 2000 08:00:00 UT",
+        "Jan 01 2000 08:00:00 UT",
+        "Jan 01 08:00:00 UT 2000",
+        "Saturday, 01-Jan-00 08:00:00 UT",
+        "01 Jan 00 08:00 +0000",
+        // Ignore weekdays.
+        "Mon, 01 Jan 2000 08:00:00 UT",
+        "Tue, 01 Jan 2000 08:00:00 UT",
+        // Ignore prefix that is not part of a date.
+        "[Saturday] Jan 01 08:00:00 UT 2000",
+        "Ignore all of this stuff because it is annoying 01 Jan 2000 08:00:00 UT",
+        "[Saturday] Jan 01 2000 08:00:00 UT",
+        "All of this stuff is really annnoying, so it will be ignored Jan 01 2000 08:00:00 UT",
+        // If the three first letters of the month is a
+        // month name we are happy - ignore the rest.
+        "Sat, 01-Janisamonth-2000 08:00:00 UT",
+        "Sat, 01 Janisamonth 2000 08:00:00 UT",
+        "Janisamonth 01 2000 08:00:00 UT",
+        "Janisamonth 01 08:00:00 UT 2000",
+        "Saturday, 01-Janisamonth-00 08:00:00 UT",
+        "01 Janisamonth 00 08:00 +0000",
+        // Allow missing space between month and day.
+        "Janisamonthandtherestisignored01 2000 08:00:00 UT",
+        "Jan01 2000 08:00:00 UT",
+        // Allow year/month/day format.
+        "Sat, 2000/01/01 08:00:00 UT",
+        // Allow month/day/year format.
+        "Sat, 01/01/2000 08:00:00 UT",
+        // Allow month/day year format.
+        "Sat, 01/01 2000 08:00:00 UT",
+        // Allow comma instead of space after day, month and year.
+        "Sat, 01,Jan,2000,08:00:00 UT",
+        // Seconds are optional.
+        "Sat, 01-Jan-2000 08:00 UT",
+        "Sat, 01 Jan 2000 08:00 UT",
+        "Jan 01 2000 08:00 UT",
+        "Jan 01 08:00 UT 2000",
+        "Saturday, 01-Jan-00 08:00 UT",
+        "01 Jan 00 08:00 +0000",
+        // Allow AM/PM after the time.
+        "Sat, 01-Jan-2000 08:00 AM UT",
+        "Sat, 01 Jan 2000 08:00 AM UT",
+        "Jan 01 2000 08:00 AM UT",
+        "Jan 01 08:00 AM UT 2000",
+        "Saturday, 01-Jan-00 08:00 AM UT",
+        "01 Jan 00 08:00 AM +0000",
+        // White space and stuff in parenthesis is
+        // apparently allowed in most places where white
+        // space is allowed.
+        "   Sat,   01-Jan-2000   08:00:00   UT  ",
+        "  Sat,   01   Jan   2000   08:00:00   UT  ",
+        "  Saturday,   01-Jan-00   08:00:00   UT  ",
+        "  01    Jan   00    08:00   +0000   ",
+        " ()(Sat, 01-Jan-2000)  Sat,   01-Jan-2000   08:00:00   UT  ",
+        "  Sat()(Sat, 01-Jan-2000)01   Jan   2000   08:00:00   UT  ",
+        "  Sat,(02)01   Jan   2000   08:00:00   UT  ",
+        "  Sat,  01(02)Jan   2000   08:00:00   UT  ",
+        "  Sat,  01  Jan  2000 (2001)08:00:00   UT  ",
+        "  Sat,  01  Jan  2000 (01)08:00:00   UT  ",
+        "  Sat,  01  Jan  2000 (01:00:00)08:00:00   UT  ",
+        "  Sat,  01  Jan  2000  08:00:00 (CDT)UT  ",
+        "  Sat,  01  Jan  2000  08:00:00  UT((((CDT))))",
+        "  Saturday,   01-Jan-00 ()(((asfd)))(Sat, 01-Jan-2000)08:00:00   UT  ",
+        "  01    Jan   00    08:00 ()(((asdf)))(Sat, 01-Jan-2000)+0000   ",
+        "  01    Jan   00    08:00   +0000()((asfd)(Sat, 01-Jan-2000)) ",
+    ];
+
+    let expected = JsValue::Date(DateTime::from_utc(
+        NaiveDateTime::new(
+            NaiveDate::from_ymd(2000, 1, 1),
+            NaiveTime::from_hms(8, 0, 0),
+        ),
+        Utc,
+    ));
+
+    let mut passed = 0;
+    let mut failed = 0;
+    
+    for case in test_cases_ut {
+        let ctx = Context::new().unwrap();
+        let res = ctx
+            .eval(&format!(r#"new Date("{}")"#, case))
+            .unwrap();
+        
+        if res == expected {
+            passed += 1;
+        } else {
+            println!("FAIL: `{}`  -  {:?}", case, res);
+            failed += 1;
+        }
+    }
+
+    println!("{}/{} Passed", passed, passed + failed);
+    assert_eq!(failed, 0);
 }

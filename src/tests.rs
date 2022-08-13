@@ -3,6 +3,8 @@ use std::{collections::HashMap, convert::TryInto};
 #[cfg(feature = "chrono")]
 use chrono::{Date, DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
+use rstest::rstest;
+
 use super::*;
 
 // #[test]
@@ -629,16 +631,167 @@ fn test_global_setter() {
 #[cfg(feature = "chrono")]
 #[test]
 fn test_date_manual() {
-    let case = " ()(Sat, 01-Jan-2000)  Sat,   01-Jan-2000   08:00:00   UT ";
-    
+    let case = "2000-01-01TZ";
+
     let ctx = Context::new().unwrap();
     let res = ctx
-    // '  Sat,   01   Jan   2000   08:00:00   UT  '
+        // '  Sat,   01   Jan   2000   08:00:00   UT  '
         .eval(&format!(r#"new Date("{}")"#, case))
         .unwrap();
 
     dbg!(res);
 }
+
+#[cfg(feature = "chrono")]
+#[rstest]
+// testCasesES5Misc
+#[case("2000-01-01T08:00:00.000Z", 946713600000)]
+#[case("2000-01-01T08:00:00Z", 946713600000)]
+#[case("2000-01-01T08:00Z", 946713600000)]
+#[case("2000-01T08:00:00.000Z", 946713600000)]
+#[case("2000T08:00:00.000Z", 946713600000)]
+#[case("2000T08:00Z", 946713600000)]
+#[case("2000-01T00:00:00.000-08:00", 946713600000)]
+#[case("2000-01T08:00:00.001Z", 946713600001)]
+#[case("2000-01T08:00:00.099Z", 946713600099)]
+#[case("2000-01T08:00:00.999Z", 946713600999)]
+#[case("2000-01T00:00:00.001-08:00", 946713600001)]
+#[case("2000-01-01T24:00Z", 946771200000)]
+#[case("2000-01-01T24:00:00Z", 946771200000)]
+#[case("2000-01-01T24:00:00.000Z", 946771200000)]
+fn test_date_iso(#[case] input: &str, #[case] expect: i64) {
+    let ctx = Context::new().unwrap();
+    let res = ctx
+        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .unwrap();
+
+    let n: f64 = res.try_into().unwrap();
+    assert_eq!(n, expect as f64);
+}
+
+#[cfg(feature = "chrono")]
+#[rstest]
+#[case("Sat, 01-Jan-2000 08:00:00 GMT", 946713600000)]
+#[case("Sat, 01-Jan-2000 08:00:00 GMT+0", 946713600000)]
+#[case("Sat, 01-Jan-2000 08:00:00 GMT+00", 946713600000)]
+#[case("Sat, 01-Jan-2000 08:00:00 GMT+000", 946713600000)]
+#[case("Sat, 01-Jan-2000 08:00:00 GMT+0000", 946713600000)]
+#[case("Sat, 01-Jan-2000 08:00:00 GMT+00:00", 946713600000)]
+#[case("Sat, 01 Jan 2000 08:00:00 GMT", 946713600000)]
+#[case("Saturday, 01-Jan-00 08:00:00 GMT", 946713600000)]
+#[case("01 Jan 00 08:00 -0000", 946713600000)]
+#[case("01 Jan 00 08:00 +0000", 946713600000)]
+fn test_date_gmt(#[case] input: &str, #[case] expect: i64) {
+    let ctx = Context::new().unwrap();
+    let res = ctx
+        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .unwrap();
+
+    let n: f64 = res.try_into().unwrap();
+    assert_eq!(n, expect as f64);
+}
+
+#[cfg(feature = "chrono")]
+#[rstest]
+// EST (-5:00)
+#[case("Sat, 01-Jan-2000 03:00:00 UTC-0500", 946713600000)]
+#[case("Sat, 01-Jan-2000 03:00:00 UTC-05:00", 946713600000)]
+#[case("Sat, 01-Jan-2000 03:00:00 EST", 946713600000)]
+#[case("Sat, 01 Jan 2000 03:00:00 EST", 946713600000)]
+#[case("Saturday, 01-Jan-00 03:00:00 EST", 946713600000)]
+#[case("01 Jan 00 03:00 -0500", 946713600000)]
+// EDT (-4:00)
+#[case("Sat, 01-Jan-2000 04:00:00 EDT", 946713600000)]
+#[case("Sat, 01 Jan 2000 04:00:00 EDT", 946713600000)]
+#[case("Saturday, 01-Jan-00 04:00:00 EDT", 946713600000)]
+#[case("01 Jan 00 04:00 -0400", 946713600000)]
+// CST (-6:00)
+#[case("Sat, 01-Jan-2000 02:00:00 CST", 946713600000)]
+#[case("Sat, 01 Jan 2000 02:00:00 CST", 946713600000)]
+#[case("Saturday, 01-Jan-00 02:00:00 CST", 946713600000)]
+#[case("01 Jan 00 02:00 -0600", 946713600000)]
+// CDT (-5:00)
+#[case("Sat, 01-Jan-2000 03:00:00 CDT", 946713600000)]
+#[case("Sat, 01 Jan 2000 03:00:00 CDT", 946713600000)]
+#[case("Saturday, 01-Jan-00 03:00:00 CDT", 946713600000)]
+#[case("01 Jan 00 03:00 -0500", 946713600000)]
+// MST (-7:00)
+#[case("Sat, 01-Jan-2000 01:00:00 MST", 946713600000)]
+#[case("Sat, 01 Jan 2000 01:00:00 MST", 946713600000)]
+#[case("Saturday, 01-Jan-00 01:00:00 MST", 946713600000)]
+#[case("01 Jan 00 01:00 -0700", 946713600000)]
+// MDT (-6:00)
+#[case("Sat, 01-Jan-2000 02:00:00 MDT", 946713600000)]
+#[case("Sat, 01 Jan 2000 02:00:00 MDT", 946713600000)]
+#[case("Saturday, 01-Jan-00 02:00:00 MDT", 946713600000)]
+#[case("01 Jan 00 02:00 -0600", 946713600000)]
+// PST (-8:00)
+#[case("Sat, 01-Jan-2000 00:00:00 PST", 946713600000)]
+#[case("Sat, 01 Jan 2000 00:00:00 PST", 946713600000)]
+#[case("Saturday, 01-Jan-00 00:00:00 PST", 946713600000)]
+#[case("01 Jan 00 00:00 -0800", 946713600000)]
+#[case("Sat, 01-Jan-2000 PST", 946713600000)]
+// PDT (-7:00)
+#[case("Sat, 01-Jan-2000 01:00:00 PDT", 946713600000)]
+#[case("Sat, 01 Jan 2000 01:00:00 PDT", 946713600000)]
+#[case("Saturday, 01-Jan-00 01:00:00 PDT", 946713600000)]
+#[case("01 Jan 00 01:00 -0700", 946713600000)]
+fn test_date_tz(#[case] input: &str, #[case] expect: i64) {
+    let ctx = Context::new().unwrap();
+    let res = ctx
+        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .unwrap();
+
+    let n: f64 = res.try_into().unwrap();
+    assert_eq!(n, expect as f64);
+}
+
+#[cfg(feature = "chrono")]
+#[rstest]
+// Special handling for years in the [0, 100) range.
+#[case("Sat, 01 Jan 0 08:00:00 UT", 946713600000)] // year 2000
+#[case("Sat, 01 Jan 49 08:00:00 UT", 2493100800000)] // year 2049
+#[case("Sat, 01 Jan 50 08:00:00 UT", -631123200000)] // year 1950
+#[case("Sat, 01 Jan 99 08:00:00 UT", 915177600000)] // year 1999
+#[case("Sat, 01 Jan 100 08:00:00 UT", -59011430400000)] // year 100
+// Test PM after time.
+#[case("Sat, 01-Jan-2000 08:00 PM UT", 946756800000)]
+#[case("Sat, 01 Jan 2000 08:00 PM UT", 946756800000)]
+#[case("Jan 01 2000 08:00 PM UT", 946756800000)]
+#[case("Jan 01 08:00 PM UT 2000", 946756800000)]
+#[case("Saturday, 01-Jan-00 08:00 PM UT", 946756800000)]
+#[case("01 Jan 00 08:00 PM +0000", 946756800000)]
+fn test_date_special(#[case] input: &str, #[case] expect: i64) {
+    let ctx = Context::new().unwrap();
+    let res = ctx
+        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .unwrap();
+
+    let n: f64 = res.try_into().unwrap();
+    assert_eq!(n, expect as f64);
+}
+
+/*
+#[rstest]
+#[case("2000-01-01TZ")]
+#[case("2000-01-01T60Z")]
+#[case("2000-01-01T60:60Z")]
+#[case("2000-01-0108:00Z")]
+#[case("2000-01-01T08Z")]
+#[case("2000-01-01T24:01")]
+#[case("2000-01-01T24:00:01")]
+#[case("2000-01-01T24:00:00.001")]
+#[case("2000-01-01T24:00:00.999Z")]
+fn test_date_invalid(#[case] input: &str) {
+    let ctx = Context::new().unwrap();
+    let res = ctx
+        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .unwrap();
+
+    let n: f64 = res.try_into().unwrap();
+    assert!(n.is_nan(), "got: {}", n);
+}
+*/
 
 #[cfg(feature = "chrono")]
 #[test]
@@ -722,13 +875,11 @@ fn test_date_ut() {
 
     let mut passed = 0;
     let mut failed = 0;
-    
+
     for case in test_cases_ut {
         let ctx = Context::new().unwrap();
-        let res = ctx
-            .eval(&format!(r#"new Date("{}")"#, case))
-            .unwrap();
-        
+        let res = ctx.eval(&format!(r#"new Date("{}")"#, case)).unwrap();
+
         if res == expected {
             passed += 1;
         } else {

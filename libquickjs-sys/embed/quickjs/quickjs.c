@@ -1436,7 +1436,7 @@ static inline int is_digit(int c) {
 }
 
 static inline int is_space_like(char c) {
-    return c == ' ' || c == ',' || c == ':' || c == '-';
+    return c == ' ' || c == ',' || c == ':' || c == '-' || c == '/';
 }
 
 typedef struct JSClassShortDef {
@@ -48339,12 +48339,10 @@ static void string_skip_spaces_and_comments(JSString *sp, int *pp) {
     }
 }
 
-static BOOL char_eq_ignorecase(char c1, char c2) {
-    if (c1 == c2) return TRUE;
-    
-    if (c1 >= 'A' && c1 <= 'Z' && c2 == c1 + 32) return TRUE;
-    if (c1 >= 'a' && c1 <= 'z' && c2 == c1 - 32) return TRUE;
-    return FALSE;
+static inline BOOL char_eq_ignorecase(char c1, char c2) {
+    if ((c1 >= 'A' && c1 <= 'Z') || (c1 >= 'a' && c1 <= 'z'))
+        return (c1 | 0x20) == (c2 | 0x20);
+    return c1 == c2;
 }
 
 static BOOL string_eq_ignorecase(JSString *s1, int p, const char *s2, int len) {
@@ -48498,7 +48496,16 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
     p = 0;
     string_skip_spaces_and_comments(sp, &p);
 
-    if (p < sp->len && (((c = string_get(sp, p)) >= '0' && c <= '9') || c == '+' || c == '-')) {
+    int end_of_digits = p;
+    if (string_get(sp, end_of_digits) == '+' || string_get(sp, end_of_digits) == '-') {
+        p++;
+    }
+    while (end_of_digits < sp->len && is_digit(string_get(sp, end_of_digits))) {
+        end_of_digits++;
+    }
+
+    if ((end_of_digits - p) > 0 &&
+        (string_get(sp, end_of_digits) == '-' || string_get(sp, end_of_digits) == 'T')) {
         /* ISO format */
         /* year field can be negative */
         if (string_get_signed_digits(sp, &p, &fields[0]))
@@ -48523,8 +48530,13 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                 c = '.';
                 break;
             }
-            if (string_get(sp, p) != c)
-                break;
+            if (string_get(sp, p) != c) {
+                // 2000T08:00Z
+                if (i < 3 && string_get(sp, p) == 'T') {
+                    i = 3;
+                }
+                else break;
+            }
             p++;
             if (i == 6) {
                 if (string_get_milliseconds(sp, &p, &fields[i]))
@@ -48633,7 +48645,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
             if (string_get_digits(sp, &p, &day))
                 goto done;
             
-            if (string_get(sp, p) != '/')
+            if (!is_space_like(string_get(sp, p)))
                 goto done;
             p++;
             if (sp->len <= p)
@@ -48644,25 +48656,17 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
             }
             string_skip_spaces_and_comments(sp, &p);
 
-            if (string_get(sp, p) == ',') {
-                p++;
-            }
-
+            // Jan,2000,08:00:00 UT
             if (month == -1) {
                 month = find_abbrev(sp, p, month_names, 12);
                 if (month == -1)
                     goto done;
                 
-                while (p < sp->len && string_get(sp, p) != '-' && string_get(sp, p) != ' ') {
+                while (p < sp->len && !is_space_like(string_get(sp, p))) {
                     p++;
                 }
                 if (sp->len <= p)
                     goto done;
-                
-                // '-99 23:12:40 GMT'
-                if (string_get(sp, p) != '-' && string_get(sp, p) != '/' && string_get(sp, p) != ' ') {
-                    goto done;
-                }
                 p++;
             }
 
@@ -48674,10 +48678,11 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
         string_skip_spaces_and_comments(sp, &p);
 
         if (year < 0) {
-            if (string_get_digits(sp, &p, &year))
-                goto done;
-            if (year < 0) {
-                goto done;
+            // Year following, e.g. 01 Jan 2000 08:00:00 UT
+            // Time following, e.g. Jan 01 08:00:00 UT 2000
+            if (sp->len <= p + 2 || string_get(sp, p + 2) != ':') {
+                if (string_get_digits(sp, &p, &year))
+                    goto done;
             }
         }
 
@@ -48694,8 +48699,6 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
             } else if (is_space_like(string_get(sp, p))) {
                 p++;
                 string_skip_spaces_and_comments(sp, &p);
-            } else {
-                goto done;
             }
 
             // Read a number? If not, this might be a timezone name.
@@ -48769,7 +48772,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
         if (sp->len > p) {
             if (string_get(sp, p) == '+' || string_get(sp, p) == '-') {
                 int64_t o;
-                if (string_get_digits(sp, &p, &o))
+                if (string_get_signed_digits(sp, &p, &o))
                     goto done;
                 
                 if (o < -9959 || o > 9959) {
@@ -48795,6 +48798,31 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                         tz = known_zones[i].tzOffset;
                         p += strlen(known_zones[i].tzName);
                         is_local = FALSE;
+
+                        // TZ offset (GMT+0)
+                        if (string_get(sp, p) == '+' || string_get(sp, p) == '-') {
+                            int64_t o;
+                            if (string_get_signed_digits(sp, &p, &o))
+                                goto done;
+                            
+                            if (o < -9959 || o > 9959) {
+                                goto done;
+                            }
+
+                            int sgn = (o < 0) ? -1 : 1;
+                            o = abs((int32_t) o);
+
+                            if (string_get(sp, p) != ':') {
+                                tz += ((o / 100) * 60 + (o % 100)) * sgn;
+                            } else {
+                                p++;
+                                int64_t o2;
+                                if (string_get_digits(sp, &p, &o2))
+                                    goto done;
+                                tz += (o * 60 + o2) * sgn;
+                            }
+                        }
+
                         break;
                     }
                 }

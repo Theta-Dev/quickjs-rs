@@ -48604,7 +48604,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
         if (string_get_digits(sp, &p, &day))
             goto done;
         
-        int64_t year = 0;
+        int64_t year = -1;
         if (day > 31) {
             if (string_get(sp, p) != '/')
                 goto done;
@@ -48673,10 +48673,10 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
 
         string_skip_spaces_and_comments(sp, &p);
 
-        if (year <= 0) {
+        if (year < 0) {
             if (string_get_digits(sp, &p, &year))
                 goto done;
-            if (year <= 0) {
+            if (year < 0) {
                 goto done;
             }
         }

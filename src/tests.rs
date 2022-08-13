@@ -1,8 +1,5 @@
 use std::{collections::HashMap, convert::TryInto};
 
-#[cfg(feature = "chrono")]
-use chrono::{Date, DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Utc};
-
 use rstest::rstest;
 
 use super::*;
@@ -628,21 +625,9 @@ fn test_global_setter() {
     ctx.eval("a + 1").unwrap();
 }
 
-#[cfg(feature = "chrono")]
-#[test]
-fn test_date_manual() {
-    let case = "2000-01-01TZ";
+// Test suite was taken from V8
+// Source: https://github.com/v8/v8/blob/9433ad119aadfe10d60935029195c31f25ab8624/test/mjsunit/date-parse.js
 
-    let ctx = Context::new().unwrap();
-    let res = ctx
-        // '  Sat,   01   Jan   2000   08:00:00   UT  '
-        .eval(&format!(r#"new Date("{}")"#, case))
-        .unwrap();
-
-    dbg!(res);
-}
-
-#[cfg(feature = "chrono")]
 #[rstest]
 // testCasesES5Misc
 #[case("2000-01-01T08:00:00.000Z", 946713600000)]
@@ -669,7 +654,6 @@ fn test_date_iso(#[case] input: &str, #[case] expect: i64) {
     assert_eq!(n, expect as f64);
 }
 
-#[cfg(feature = "chrono")]
 #[rstest]
 #[case("Sat, 01-Jan-2000 08:00:00 GMT", 946713600000)]
 #[case("Sat, 01-Jan-2000 08:00:00 GMT+0", 946713600000)]
@@ -691,7 +675,6 @@ fn test_date_gmt(#[case] input: &str, #[case] expect: i64) {
     assert_eq!(n, expect as f64);
 }
 
-#[cfg(feature = "chrono")]
 #[rstest]
 // EST (-5:00)
 #[case("Sat, 01-Jan-2000 03:00:00 UTC-0500", 946713600000)]
@@ -746,7 +729,6 @@ fn test_date_tz(#[case] input: &str, #[case] expect: i64) {
     assert_eq!(n, expect as f64);
 }
 
-#[cfg(feature = "chrono")]
 #[rstest]
 // Special handling for years in the [0, 100) range.
 #[case("Sat, 01 Jan 0 08:00:00 UT", 946713600000)] // year 2000
@@ -771,7 +753,6 @@ fn test_date_special(#[case] input: &str, #[case] expect: i64) {
     assert_eq!(n, expect as f64);
 }
 
-/*
 #[rstest]
 #[case("2000-01-01TZ")]
 #[case("2000-01-01T60Z")]
@@ -782,6 +763,12 @@ fn test_date_special(#[case] input: &str, #[case] expect: i64) {
 #[case("2000-01-01T24:00:01")]
 #[case("2000-01-01T24:00:00.001")]
 #[case("2000-01-01T24:00:00.999Z")]
+#[case("May 25 2008 1:30 (PM)) UTC")]
+#[case("May 25 2008 1:30( )AM (PM)")]
+#[case("a1")]
+#[case("nasfdjklsfjoaifg1")]
+#[case("x_2")]
+#[case("May 25 2008 AAA (GMT)")]
 fn test_date_invalid(#[case] input: &str) {
     let ctx = Context::new().unwrap();
     let res = ctx
@@ -791,9 +778,7 @@ fn test_date_invalid(#[case] input: &str) {
     let n: f64 = res.try_into().unwrap();
     assert!(n.is_nan(), "got: {}", n);
 }
-*/
 
-#[cfg(feature = "chrono")]
 #[test]
 fn test_date_ut() {
     let test_cases_ut = vec![
@@ -865,29 +850,42 @@ fn test_date_ut() {
         "  01    Jan   00    08:00   +0000()((asfd)(Sat, 01-Jan-2000)) ",
     ];
 
-    let expected = JsValue::Date(DateTime::from_utc(
-        NaiveDateTime::new(
-            NaiveDate::from_ymd(2000, 1, 1),
-            NaiveTime::from_hms(8, 0, 0),
-        ),
-        Utc,
-    ));
-
     let mut passed = 0;
     let mut failed = 0;
 
     for case in test_cases_ut {
         let ctx = Context::new().unwrap();
-        let res = ctx.eval(&format!(r#"new Date("{}")"#, case)).unwrap();
+        let res = ctx.eval(&format!(r#"new Date("{}").getTime()"#, case)).unwrap();
+        let n: f64 = res.try_into().unwrap();
 
-        if res == expected {
+        if n == 946713600000.0 {
             passed += 1;
         } else {
-            println!("FAIL: `{}`  -  {:?}", case, res);
+            println!("FAIL: `{}`  -  {}", case, n);
             failed += 1;
         }
     }
 
     println!("{}/{} Passed", passed, passed + failed);
     assert_eq!(failed, 0);
+}
+
+#[test]
+// Test if the JS interpreter can parse its own date format
+// (Dates from 1970 to ~2070 with 150h steps.)
+fn test_date_selfparse() {
+    let ctx = Context::new().unwrap();
+        let res = ctx.eval(r#"
+        test = () => {
+            for (var i = 0; i < 24 * 365 * 100; i += 150) {
+                var ms = i * (3600 * 1000);
+                var s = (new Date(ms)).toString();
+                if(ms != Date.parse(s)) return false;
+            }
+            return true;
+        }
+        test();
+        "#).unwrap();
+        let res: bool = res.try_into().unwrap();
+        assert!(res);
 }

@@ -48440,6 +48440,34 @@ static int string_get_milliseconds(JSString *sp, int *pp, int64_t *pval) {
     return 0;
 }
 
+static int string_get_num_timezone(JSString *sp, int *pp, int64_t *pval)
+{
+    int p = *pp;
+    
+    int64_t o;
+    if (string_get_signed_digits(sp, &p, &o))
+        return -1;
+
+    if (o < -9959 || o > 9959) {
+        return -1;
+    }
+
+    int sgn = (o < 0) ? -1 : 1;
+    o = abs((int32_t) o);
+
+    if (string_get(sp, p) != ':') {
+        *pval = ((o / 100) * 60 + (o % 100)) * sgn;
+    } else {
+        p++;
+        int64_t o2;
+        if (string_get_digits(sp, &p, &o2))
+            return -1;
+        *pval = (o * 60 + o2) * sgn;
+    }
+
+    *pp = p;
+    return 0;
+}
 
 static int find_abbrev(JSString *sp, int p, const char *list, int count) {
     int n, i;
@@ -48515,18 +48543,18 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
             if (p >= sp->len)
                 break;
             switch(i) {
-            case 1:
-            case 2:
+            case 1: // Year
+            case 2: // Month
                 c = '-';
                 break;
-            case 3:
+            case 3: // Day
                 c = 'T';
                 break;
-            case 4:
-            case 5:
+            case 4: // Hour
+            case 5: // Minute
                 c = ':';
                 break;
-            case 6:
+            case 6: // Second
                 c = '.';
                 break;
             }
@@ -48546,6 +48574,9 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                     goto done;
             }
         }
+        // Hour only is invalid
+        if (i == 4) goto done;
+
         /* no time: UTC by default */
         is_local = (i > 3);
         fields[1] -= 1;
@@ -48669,10 +48700,6 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                     goto done;
                 p++;
             }
-
-            if (month < 0 || month > 11) {
-                goto done;
-            }
         }
 
         string_skip_spaces_and_comments(sp, &p);
@@ -48718,10 +48745,6 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
 
                 if (string_get_digits(sp, &p, &minute))
                     goto done;
-                
-                if (minute < 0 || minute > 59) {
-                    goto done;
-                }
 
                 // ':40 GMT'
                 // seconds are optional in rfc822 + rfc2822
@@ -48730,10 +48753,6 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
 
                     if (string_get_digits(sp, &p, &second))
                         goto done;
-                    
-                    if (second < 0 || second > 59) {
-                        goto done;
-                    }
 
                     // disallow trailing colon seconds
                     if (string_get(sp, p) == ':') {
@@ -48771,26 +48790,8 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
         // Some websites omit the time zone
         if (sp->len > p) {
             if (string_get(sp, p) == '+' || string_get(sp, p) == '-') {
-                int64_t o;
-                if (string_get_signed_digits(sp, &p, &o))
+                if (string_get_num_timezone(sp, &p, &tz))
                     goto done;
-                
-                if (o < -9959 || o > 9959) {
-                    goto done;
-                }
-
-                int sgn = (o < 0) ? -1 : 1;
-                o = abs((int32_t) o);
-
-                if (string_get(sp, p) != ':') {
-                    tz = ((o / 100) * 60 + (o % 100)) * sgn;
-                } else {
-                    p++;
-                    int64_t o2;
-                    if (string_get_digits(sp, &p, &o2))
-                        goto done;
-                    tz = (o * 60 + o2) * sgn;
-                }
                 is_local = FALSE;
             } else {
                 for (int i = 0; i < sizeof(known_zones) / sizeof(struct KnownZone); i++) {
@@ -48802,27 +48803,11 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                         // TZ offset (GMT+0)
                         if (string_get(sp, p) == '+' || string_get(sp, p) == '-') {
                             int64_t o;
-                            if (string_get_signed_digits(sp, &p, &o))
+                            if (string_get_num_timezone(sp, &p, &o))
                                 goto done;
                             
-                            if (o < -9959 || o > 9959) {
-                                goto done;
-                            }
-
-                            int sgn = (o < 0) ? -1 : 1;
-                            o = abs((int32_t) o);
-
-                            if (string_get(sp, p) != ':') {
-                                tz += ((o / 100) * 60 + (o % 100)) * sgn;
-                            } else {
-                                p++;
-                                int64_t o2;
-                                if (string_get_digits(sp, &p, &o2))
-                                    goto done;
-                                tz += (o * 60 + o2) * sgn;
-                            }
+                            tz += o;
                         }
-
                         break;
                     }
                 }
@@ -48859,6 +48844,16 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
         fields[4] = minute;
         fields[5] = second;
     }
+
+    // Validate fields
+    if (fields[1] < 0 || fields[1] > 11 ||
+        fields[2] < 1 || fields[2] > 31 ||
+        fields[3] < 0 || fields[3] > 24 ||
+        fields[4] < 0 || fields[4] > 59 ||
+        fields[5] < 0 || fields[5] > 59 ||
+        fields[6] < 0 || fields[6] > 999 ||
+        fields[3] * 3600 * 1000 + fields[4] * 60000 + fields[5] * 1000 + fields[6] > 24 * 3600 * 1000
+    ) goto done;
 
     for(i = 0; i < 7; i++)
         fields1[i] = fields[i];

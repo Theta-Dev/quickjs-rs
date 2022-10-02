@@ -855,7 +855,9 @@ fn test_date_ut() {
 
     for case in test_cases_ut {
         let ctx = Context::new().unwrap();
-        let res = ctx.eval(&format!(r#"new Date("{}").getTime()"#, case)).unwrap();
+        let res = ctx
+            .eval(&format!(r#"new Date("{}").getTime()"#, case))
+            .unwrap();
         let n: f64 = res.try_into().unwrap();
 
         if n == 946713600000.0 {
@@ -875,7 +877,9 @@ fn test_date_ut() {
 // (Dates from 1970 to ~2070 with 150h steps.)
 fn test_date_selfparse() {
     let ctx = Context::new().unwrap();
-        let res = ctx.eval(r#"
+    let res = ctx
+        .eval(
+            r#"
         test = () => {
             for (var i = 0; i < 24 * 365 * 100; i += 150) {
                 var ms = i * (3600 * 1000);
@@ -885,7 +889,9 @@ fn test_date_selfparse() {
             return true;
         }
         test();
-        "#).unwrap();
-        let res: bool = res.try_into().unwrap();
-        assert!(res);
+        "#,
+        )
+        .unwrap();
+    let res: bool = res.try_into().unwrap();
+    assert!(res);
 }

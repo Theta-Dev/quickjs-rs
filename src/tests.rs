@@ -494,7 +494,7 @@ fn chrono_deserialize() {
     let c = build_context();
 
     let value = c.eval(" new Date(1234567555) ").unwrap();
-    let datetime = chrono::Utc.timestamp_millis(1234567555);
+    let datetime = chrono::Utc.timestamp_millis_opt(1234567555).unwrap();
 
     assert_eq!(value, JsValue::Date(datetime));
 }

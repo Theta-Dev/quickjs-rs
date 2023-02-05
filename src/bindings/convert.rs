@@ -451,20 +451,23 @@ pub(super) fn deserialize_value(
                             q::JS_FreeValue(context, date_constructor);
                         };
 
-                        let res = if timestamp_raw.tag == TAG_FLOAT64 {
-                            let f = unsafe { timestamp_raw.u.float64 } as i64;
-                            let datetime = chrono::Utc.timestamp_millis(f);
-                            Ok(JsValue::Date(datetime))
+                        let timestamp_ms = if timestamp_raw.tag == TAG_FLOAT64 {
+                            (unsafe { timestamp_raw.u.float64 } as i64)
                         } else if timestamp_raw.tag == TAG_INT {
-                            let f = unsafe { timestamp_raw.u.int32 } as i64;
-                            let datetime = chrono::Utc.timestamp_millis(f);
-                            Ok(JsValue::Date(datetime))
+                            (unsafe { timestamp_raw.u.int32 } as i64)
                         } else {
-                            Err(ValueError::Internal(
+                            return Err(ValueError::Internal(
                                 "Could not convert 'Date' instance to timestamp".into(),
-                            ))
+                            ));
                         };
-                        return res;
+
+                        return chrono::Utc
+                            .timestamp_millis_opt(timestamp_ms)
+                            .single()
+                            .map(|dt| JsValue::Date(dt))
+                            .ok_or(ValueError::Internal(
+                                "Could not convert 'Date' instance to timestamp".into(),
+                            ));
                     } else {
                         unsafe { q::JS_FreeValue(context, date_constructor) };
                     }

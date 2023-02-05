@@ -259,6 +259,7 @@ where
 
 /// Error during value conversion.
 #[derive(PartialEq, Eq, Debug)]
+#[non_exhaustive]
 pub enum ValueError {
     /// Invalid non-utf8 string.
     InvalidString(std::str::Utf8Error),
@@ -268,8 +269,6 @@ pub enum ValueError {
     Internal(String),
     /// Received an unexpected type that could not be converted.
     UnexpectedType,
-    #[doc(hidden)]
-    __NonExhaustive,
 }
 
 // TODO: remove this once either the Never type get's stabilized or the compiler
@@ -286,13 +285,11 @@ impl fmt::Display for ValueError {
         match self {
             InvalidString(e) => write!(
                 f,
-                "Value conversion failed - invalid non-utf8 string: {}",
-                e
+                "Value conversion failed - invalid non-utf8 string: {e}"
             ),
             StringWithZeroBytes(_) => write!(f, "String contains \\0 bytes",),
-            Internal(e) => write!(f, "Value conversion failed - internal error: {}", e),
+            Internal(e) => write!(f, "Value conversion failed - internal error: {e}"),
             UnexpectedType => write!(f, "Could not convert - received unexpected type"),
-            __NonExhaustive => unreachable!(),
         }
     }
 }

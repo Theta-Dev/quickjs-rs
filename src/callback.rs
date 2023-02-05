@@ -104,7 +104,7 @@ where
     }
 
     fn call(&self, args: Vec<JsValue>) -> Result<Result<JsValue, String>, ValueError> {
-        if args.len() != 0 {
+        if !args.is_empty() {
             return Ok(Err(format!(
                 "Invalid argument count: Expected 0, got {}",
                 args.len(),
@@ -124,7 +124,7 @@ impl_callback![
     5: (A1, A2, A3, A4, A5,),
 ];
 
-/// A wrapper around Vec<JsValue>, used for vararg callbacks.
+/// A wrapper around [`Vec<JsValue>`], used for vararg callbacks.
 ///
 /// To create a callback with a variable number of arguments, a callback closure
 /// must take a single `Arguments` argument.

@@ -4,7 +4,7 @@ pub fn main() {
     let context = Context::new().unwrap();
 
     let value = context.eval("1 + 2").unwrap();
-    println!("js: 1 + 2 = {:?}", value);
+    println!("js: 1 + 2 = {value:?}");
 
     context
         .add_callback("myCallback", |a: i32, b: i32| a + b * b)
@@ -18,5 +18,5 @@ pub fn main() {
 "#,
         )
         .unwrap();
-    println!("js: callback = {:?}", value);
+    println!("js: callback = {value:?}");
 }

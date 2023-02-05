@@ -432,8 +432,7 @@ impl<'a> OwnedJsObject<'a> {
 
         if tag.is_exception() {
             Err(ExecutionError::Internal(format!(
-                "Exception while getting property '{}'",
-                name
+                "Exception while getting property '{name}'"
             )))
         } else if tag.is_undefined() {
             Ok(None)
@@ -444,7 +443,7 @@ impl<'a> OwnedJsObject<'a> {
 
     pub fn property_require(&self, name: &str) -> Result<OwnedJsValue<'a>, ExecutionError> {
         self.property(name)?
-            .ok_or_else(|| ExecutionError::Internal(format!("Property '{}' not found", name)))
+            .ok_or_else(|| ExecutionError::Internal(format!("Property '{name}' not found")))
     }
 
     /// Determine if the object is a promise by checking the presence of

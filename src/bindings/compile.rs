@@ -47,7 +47,7 @@ pub fn run_compiled_function<'a>(
 
     context.ensure_no_excpetion().map_err(|e| {
         if let ExecutionError::Internal(msg) = e {
-            ExecutionError::Internal(format!("Could not evaluate compiled function: {}", msg))
+            ExecutionError::Internal(format!("Could not evaluate compiled function: {msg}"))
         } else {
             e
         }
@@ -122,7 +122,6 @@ pub mod tests {
             "test_func.es",
         );
         let func = func_res
-            .ok()
             .expect("func compile failed")
             .try_into_compiled_function()
             .unwrap();
@@ -132,7 +131,6 @@ pub mod tests {
 
         let func2_res = from_bytecode(&ctx, &bytecode);
         let func2 = func2_res
-            .ok()
             .expect("could not read bytecode")
             .try_into_compiled_function()
             .unwrap();
@@ -157,7 +155,6 @@ pub mod tests {
             "test_func.es",
         );
         let func = func_res
-            .ok()
             .expect("func compile failed")
             .try_into_compiled_function()
             .unwrap();
@@ -166,7 +163,6 @@ pub mod tests {
         assert!(!bytecode.is_empty());
         let func2_res = from_bytecode(&ctx, &bytecode);
         let func2 = func2_res
-            .ok()
             .expect("could not read bytecode")
             .try_into_compiled_function()
             .unwrap();
@@ -191,7 +187,7 @@ pub mod tests {
             "{the changes of me compil1ng a're slim to 0-0}",
             "test_func_fail.es",
         );
-        func_res.err().expect("func compiled unexpectedly");
+        func_res.expect_err("func compiled unexpectedly");
     }
 
     #[test]
@@ -200,7 +196,6 @@ pub mod tests {
 
         let func_res = compile(&ctx, "let abcdef = 1;", "test_func_runfail.es");
         let func = func_res
-            .ok()
             .expect("func compile failed")
             .try_into_compiled_function()
             .unwrap();
@@ -232,9 +227,7 @@ pub mod tests {
 
         assert_eq!(1, func2.as_value().get_ref_count());
 
-        let _run_res2 = run_compiled_function(&func2)
-            .err()
-            .expect("run 2 succeeded unexpectedly");
+        let _run_res2 = run_compiled_function(&func2).expect_err("run 2 succeeded unexpectedly");
 
         assert_eq!(1, func2.as_value().get_ref_count());
     }

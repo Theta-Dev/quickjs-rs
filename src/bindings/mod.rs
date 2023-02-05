@@ -269,13 +269,11 @@ impl<'a> OwnedObjectRef<'a> {
 
         if raw.tag == TAG_EXCEPTION {
             Err(ExecutionError::Internal(format!(
-                "Exception while getting property '{}'",
-                name
+                "Exception while getting property '{name}'"
             )))
         } else if raw.tag == TAG_UNDEFINED {
             Err(ExecutionError::Internal(format!(
-                "Property '{}' not found",
-                name
+                "Property '{name}' not found"
             )))
         } else {
             Ok(OwnedValueRef::new(self.value.context, raw))
@@ -681,10 +679,10 @@ impl ContextWrapper {
     }
 
     /// Add a global JS function that is backed by a Rust function or closure.
-    pub fn create_callback<'a, F>(
-        &'a self,
+    pub fn create_callback<F>(
+        &self,
         callback: impl Callback<F> + 'static,
-    ) -> Result<JsFunction<'a>, ExecutionError> {
+    ) -> Result<JsFunction, ExecutionError> {
         let argcount = callback.argument_count() as i32;
 
         let context = self.context;
@@ -724,8 +722,8 @@ impl ContextWrapper {
         Ok(f)
     }
 
-    pub fn add_callback<'a, F>(
-        &'a self,
+    pub fn add_callback<F>(
+        &self,
         name: &str,
         callback: impl Callback<F> + 'static,
     ) -> Result<(), ExecutionError> {

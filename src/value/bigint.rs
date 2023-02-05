@@ -46,8 +46,8 @@ impl BigInt {
 impl std::fmt::Display for BigInt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.inner {
-            BigIntOrI64::Int(i) => write!(f, "{}", i),
-            BigIntOrI64::BigInt(ref i) => write!(f, "{}", i),
+            BigIntOrI64::Int(i) => write!(f, "{i}"),
+            BigIntOrI64::BigInt(ref i) => write!(f, "{i}"),
         }
     }
 }

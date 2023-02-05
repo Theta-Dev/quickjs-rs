@@ -227,7 +227,7 @@ pub(super) fn serialize_value(
                 let s = DroppableValue::new(s, |&mut s| unsafe {
                     q::JS_FreeValue(context, s);
                 });
-                if (*s).tag != TAG_STRING {
+                if s.tag != TAG_STRING {
                     return Err(ValueError::Internal(
                         "Could not construct String object needed to create BigInt object".into(),
                     ));
@@ -503,8 +503,7 @@ pub(super) fn deserialize_value(
             }
         }
         x => Err(ValueError::Internal(format!(
-            "Unhandled JS_TAG value: {}",
-            x
+            "Unhandled JS_TAG value: {x}"
         ))),
     }
 }

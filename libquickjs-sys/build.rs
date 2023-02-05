@@ -126,7 +126,7 @@ fn apply_patches(code_dir: &PathBuf) {
         let patch = patch.expect("Could not open patch");
         eprintln!("Applying {:?}...", patch.file_name());
         let status = std::process::Command::new("patch")
-            .current_dir(&code_dir)
+            .current_dir(code_dir)
             .arg("-i")
             .arg(patch.path())
             .spawn()

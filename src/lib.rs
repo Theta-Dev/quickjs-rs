@@ -32,7 +32,7 @@
 //! "#).unwrap();
 //! ```
 
-#![allow(dead_code)]
+#![allow(dead_code, clippy::missing_safety_doc)]
 #![deny(missing_docs)]
 
 mod bindings;
@@ -52,6 +52,7 @@ pub use self::{
 
 /// Error on Javascript execution.
 #[derive(PartialEq, Debug)]
+#[non_exhaustive]
 pub enum ExecutionError {
     /// Code to be executed contained zero-bytes.
     InputWithZeroBytes,
@@ -63,8 +64,6 @@ pub enum ExecutionError {
     Exception(JsValue),
     /// JS Runtime exceeded the memory limit.
     OutOfMemory,
-    #[doc(hidden)]
-    __NonExhaustive,
 }
 
 impl fmt::Display for ExecutionError {
@@ -73,10 +72,9 @@ impl fmt::Display for ExecutionError {
         match self {
             InputWithZeroBytes => write!(f, "Invalid script input: code contains zero byte (\\0)"),
             Conversion(e) => e.fmt(f),
-            Internal(e) => write!(f, "Internal error: {}", e),
-            Exception(e) => write!(f, "{:?}", e),
+            Internal(e) => write!(f, "Internal error: {e}"),
+            Exception(e) => write!(f, "{e:?}"),
             OutOfMemory => write!(f, "Out of memory: runtime memory limit exceeded"),
-            __NonExhaustive => unreachable!(),
         }
     }
 }
@@ -91,6 +89,7 @@ impl From<ValueError> for ExecutionError {
 
 /// Error on context creation.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ContextError {
     /// Runtime could not be created.
     RuntimeCreationFailed,
@@ -98,8 +97,6 @@ pub enum ContextError {
     ContextCreationFailed,
     /// Execution error while building.
     Execution(ExecutionError),
-    #[doc(hidden)]
-    __NonExhaustive,
 }
 
 impl fmt::Display for ContextError {
@@ -109,7 +106,6 @@ impl fmt::Display for ContextError {
             RuntimeCreationFailed => write!(f, "Could not create runtime"),
             ContextCreationFailed => write!(f, "Could not create context"),
             Execution(e) => e.fmt(f),
-            __NonExhaustive => unreachable!(),
         }
     }
 }

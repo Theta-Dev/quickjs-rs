@@ -28,7 +28,7 @@ impl std::fmt::Display for Level {
             Warn => "warn",
             Error => "error",
         };
-        write!(f, "{}", v)
+        write!(f, "{v}")
     }
 }
 
@@ -91,7 +91,7 @@ mod log {
                     .map(print_value)
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("[{}]", parts)
+                format!("[{parts}]")
             }
             JsValue::Object(map) => {
                 let parts = map
@@ -99,7 +99,7 @@ mod log {
                     .map(|(key, value)| format!("{}: {}", key, print_value(value)))
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("{{{}}}", parts)
+                format!("{{{parts}}}")
             }
             #[cfg(feature = "chrono")]
             JsValue::Date(v) => v.to_string(),

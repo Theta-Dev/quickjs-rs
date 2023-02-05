@@ -74,9 +74,7 @@ fn test_eval_pass() {
 
     for (index, (code, res)) in obj_cases.into_iter().enumerate() {
         let full_code = format!(
-            "var v{index} = {code}; v{index}",
-            index = index,
-            code = code
+            "var v{index} = {code}; v{index}"
         );
         assert_eq!(c.eval(&full_code), res,);
     }
@@ -283,7 +281,7 @@ fn test_callback() {
     c.add_callback("cb1", |flag: bool| !flag).unwrap();
     assert_eq!(c.eval("cb1(true)").unwrap(), JsValue::Bool(false),);
 
-    c.add_callback("concat2", |a: String, b: String| format!("{}{}", a, b))
+    c.add_callback("concat2", |a: String, b: String| format!("{a}{b}"))
         .unwrap();
     assert_eq!(
         c.eval(r#"concat2("abc", "def")"#).unwrap(),
@@ -486,7 +484,7 @@ fn chrono_serialize() {
     let now_millis = now.timestamp_millis();
 
     let timestamp = c
-        .call_function("dateToTimestamp", vec![JsValue::Date(now.clone())])
+        .call_function("dateToTimestamp", vec![JsValue::Date(now)])
         .unwrap();
 
     assert_eq!(timestamp, JsValue::Float(now_millis as f64));
@@ -512,8 +510,8 @@ fn chrono_roundtrip() {
 
     c.eval(" function identity(x) { return x; } ").unwrap();
     let d = chrono::Utc::now();
-    let td = JsValue::Date(d.clone());
-    let td2 = c.call_function("identity", vec![td.clone()]).unwrap();
+    let td = JsValue::Date(d);
+    let td2 = c.call_function("identity", vec![td]).unwrap();
     let d2 = if let JsValue::Date(x) = td2 {
         x
     } else {
@@ -647,7 +645,7 @@ fn test_global_setter() {
 fn test_date_iso(#[case] input: &str, #[case] expect: i64) {
     let ctx = Context::new().unwrap();
     let res = ctx
-        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .eval(&format!(r#"new Date("{input}").getTime()"#))
         .unwrap();
 
     let n: f64 = res.try_into().unwrap();
@@ -668,7 +666,7 @@ fn test_date_iso(#[case] input: &str, #[case] expect: i64) {
 fn test_date_gmt(#[case] input: &str, #[case] expect: i64) {
     let ctx = Context::new().unwrap();
     let res = ctx
-        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .eval(&format!(r#"new Date("{input}").getTime()"#))
         .unwrap();
 
     let n: f64 = res.try_into().unwrap();
@@ -722,7 +720,7 @@ fn test_date_gmt(#[case] input: &str, #[case] expect: i64) {
 fn test_date_tz(#[case] input: &str, #[case] expect: i64) {
     let ctx = Context::new().unwrap();
     let res = ctx
-        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .eval(&format!(r#"new Date("{input}").getTime()"#))
         .unwrap();
 
     let n: f64 = res.try_into().unwrap();
@@ -746,7 +744,7 @@ fn test_date_tz(#[case] input: &str, #[case] expect: i64) {
 fn test_date_special(#[case] input: &str, #[case] expect: i64) {
     let ctx = Context::new().unwrap();
     let res = ctx
-        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .eval(&format!(r#"new Date("{input}").getTime()"#))
         .unwrap();
 
     let n: f64 = res.try_into().unwrap();
@@ -772,11 +770,11 @@ fn test_date_special(#[case] input: &str, #[case] expect: i64) {
 fn test_date_invalid(#[case] input: &str) {
     let ctx = Context::new().unwrap();
     let res = ctx
-        .eval(&format!(r#"new Date("{}").getTime()"#, input))
+        .eval(&format!(r#"new Date("{input}").getTime()"#))
         .unwrap();
 
     let n: f64 = res.try_into().unwrap();
-    assert!(n.is_nan(), "got: {}", n);
+    assert!(n.is_nan(), "got: {n}");
 }
 
 #[test]
@@ -856,14 +854,14 @@ fn test_date_ut() {
     for case in test_cases_ut {
         let ctx = Context::new().unwrap();
         let res = ctx
-            .eval(&format!(r#"new Date("{}").getTime()"#, case))
+            .eval(&format!(r#"new Date("{case}").getTime()"#))
             .unwrap();
         let n: f64 = res.try_into().unwrap();
 
         if n == 946713600000.0 {
             passed += 1;
         } else {
-            println!("FAIL: `{}`  -  {}", case, n);
+            println!("FAIL: `{case}`  -  {n}");
             failed += 1;
         }
     }

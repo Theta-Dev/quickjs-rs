@@ -19,7 +19,7 @@ crate which includes a fully featured date parser, capable of parsing dates like
 
 ```toml
 [dependencies]
-quick-js = "0.4.1"
+quick-js-dtp = "0.4.1"
 ```
 
 ```rust

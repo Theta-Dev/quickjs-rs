@@ -55,10 +55,13 @@ The crate supports the following features:
 * `log`: allows forwarding `console.log` messages to the `log` crate.
     Note: must be enabled with `ContextBuilder::console(quick_js::console::LogConsole);`
 
-* `patched` 
+* `patch-bigint` 
     Enabled automatically for some other features, like `bigint`. 
     You should not need to enable this manually.
-    Applies QuickJS patches that can be found in `libquickjs-sys/embed/patches` directory.
+
+* `patch-dateparser`
+    Enables the improved JS date parser that supports additional date formats like
+    `Sat, 01-Jan-2000 00:00:00 PST`
 
 
 ## Installation

@@ -283,10 +283,7 @@ impl fmt::Display for ValueError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ValueError::*;
         match self {
-            InvalidString(e) => write!(
-                f,
-                "Value conversion failed - invalid non-utf8 string: {e}"
-            ),
+            InvalidString(e) => write!(f, "Value conversion failed - invalid non-utf8 string: {e}"),
             StringWithZeroBytes(_) => write!(f, "String contains \\0 bytes",),
             Internal(e) => write!(f, "Value conversion failed - internal error: {e}"),
             UnexpectedType => write!(f, "Could not convert - received unexpected type"),

@@ -73,9 +73,7 @@ fn test_eval_pass() {
     ];
 
     for (index, (code, res)) in obj_cases.into_iter().enumerate() {
-        let full_code = format!(
-            "var v{index} = {code}; v{index}"
-        );
+        let full_code = format!("var v{index} = {code}; v{index}");
         assert_eq!(c.eval(&full_code), res,);
     }
 

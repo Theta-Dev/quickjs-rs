@@ -502,8 +502,6 @@ pub(super) fn deserialize_value(
                 }))
             }
         }
-        x => Err(ValueError::Internal(format!(
-            "Unhandled JS_TAG value: {x}"
-        ))),
+        x => Err(ValueError::Internal(format!("Unhandled JS_TAG value: {x}"))),
     }
 }

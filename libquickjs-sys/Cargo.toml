@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2021"
 name = "libquickjs-sys"
 description = "QuickJS Javascript Engine FFI bindings"
 version = "0.9.0"

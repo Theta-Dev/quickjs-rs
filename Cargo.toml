@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2021"
 name = "quick-js"
 description = "QuickJS Javascript engine wrapper"
 version = "0.4.2-alpha.0"

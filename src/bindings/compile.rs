@@ -66,7 +66,7 @@ pub fn to_bytecode(context: &ContextWrapper, compiled_func: &JsCompiledFunction)
             *compiled_func.as_value().as_inner(),
             q::JS_WRITE_OBJ_BYTECODE as i32,
         );
-        let slice = std::slice::from_raw_parts(raw, len as usize);
+        let slice = std::slice::from_raw_parts(raw, len);
         let data = slice.to_vec();
         q::js_free(context.context, raw as *mut c_void);
         data

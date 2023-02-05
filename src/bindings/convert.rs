@@ -221,7 +221,7 @@ pub(super) fn serialize_value(
                     q::JS_NewStringLen(
                         context,
                         bigint_string.as_ptr() as *const c_char,
-                        bigint_string.len() as q::size_t,
+                        bigint_string.len(),
                     )
                 };
                 let s = DroppableValue::new(s, |&mut s| unsafe {

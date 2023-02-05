@@ -1,8 +1,8 @@
-# quickjs-rs
+# quick-js-dtp
 
-[![Crates.io](https://img.shields.io/crates/v/quick-js.svg?maxAge=3600)](https://crates.io/crates/quick-js)
-[![docs.rs](https://docs.rs/quick-js/badge.svg)](https://docs.rs/quick-js)
-[![Build Status](https://github.com/theduke/quickjs-rs/workflows/CI/badge.svg)
+[![Crates.io](https://img.shields.io/crates/v/quick-js-dtp.svg?maxAge=3600)](https://crates.io/crates/quick-js-dtp)
+[![docs.rs](https://docs.rs/quick-js-dtp/badge.svg)](https://docs.rs/quick-js-dtp)
+[![CI](https://github.com/Theta-Dev/quickjs-rs/actions/workflows/main.yml/badge.svg)](https://github.com/Theta-Dev/quickjs-rs/actions/workflows/main.yml)
 
 A Rust wrapper for [QuickJS](https://bellard.org/quickjs/). 
 
@@ -10,6 +10,10 @@ QuickJS is a new, small Javascript engine by Fabrice Bellard and Charlie Gordon.
 It is fast and supports the full ES2020 specification.
 
 This crate allows you to easily run and integrate with Javascript code from Rust.
+
+This is a fork of the original [quick-js](https://crates.io/crates/quick-js)
+crate which includes a fully featured date parser, capable of parsing dates like
+`Sat, 01-Jan-2000 00:00:00 PST`.
 
 ## Quickstart
 

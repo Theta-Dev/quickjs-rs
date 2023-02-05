@@ -1,8 +1,12 @@
-# libquickjs-sys
+# libquickjs-dtp-sys
 
 FFI Bindings for [quickjs](https://bellard.org/quickjs/), a Javascript engine.
 
-See the [quick](https://crates.io/crates/quickjs) crate for a high-level
+This is a fork of the original [libquickjs-sys](https://crates.io/crates/libquickjs-sys)
+crate which includes a fully featured date parser, capable of parsing dates like
+`Sat, 01-Jan-2000 00:00:00 PST`.
+
+See the [quick-js-dtp](https://crates.io/crates/quick-js-dtp) crate for a high-level
 wrapper.
 
 

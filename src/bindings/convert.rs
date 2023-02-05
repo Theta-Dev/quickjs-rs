@@ -464,7 +464,7 @@ pub(super) fn deserialize_value(
                         return chrono::Utc
                             .timestamp_millis_opt(timestamp_ms)
                             .single()
-                            .map(|dt| JsValue::Date(dt))
+                            .map(JsValue::Date)
                             .ok_or(ValueError::Internal(
                                 "Could not convert 'Date' instance to timestamp".into(),
                             ));

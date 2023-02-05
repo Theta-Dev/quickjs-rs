@@ -1435,10 +1435,6 @@ static inline int is_digit(int c) {
     return c >= '0' && c <= '9';
 }
 
-static inline int is_space_like(char c) {
-    return c == ' ' || c == ',' || c == ':' || c == '-' || c == '/';
-}
-
 typedef struct JSClassShortDef {
     JSAtom class_name;
     JSClassFinalizer *finalizer;
@@ -47933,23 +47929,6 @@ static int const month_days[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 static char const month_names[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
 static char const day_names[] = "SunMonTueWedThuFriSat";
 
-static const struct KnownZone {
-    char tzName[4];
-    int tzOffset;
-} known_zones[] = {
-    { "UTC", 0 },
-    { "UT", 0 },
-    { "GMT", 0 },
-    { "EST", -300 },
-    { "EDT", -240 },
-    { "CST", -360 },
-    { "CDT", -300 },
-    { "MST", -420 },
-    { "MDT", -360 },
-    { "PST", -480 },
-    { "PDT", -420 }
-};
-
 static __exception int get_date_fields(JSContext *ctx, JSValueConst obj,
                                        double fields[9], int is_local, int force)
 {
@@ -48315,44 +48294,14 @@ static JSValue js_Date_UTC(JSContext *ctx, JSValueConst this_val,
     return JS_NewFloat64(ctx, set_date_fields(fields, 0));
 }
 
-static void string_skip_spaces_and_comments(JSString *sp, int *pp) {
-    int nesting = 0;
-    while (*pp < sp->len) {
-        char ch = string_get(sp, *pp);
-        int nxt = *pp + 1;
-
-        // interpret - before a number as a sign rather than a comment char
-        if (ch == '-' && nesting == 0 && nxt < sp->len && is_digit(string_get(sp, nxt))) {
-            break;
-        }
-        if (!is_space_like(ch)) {
-            if (ch == '(') {
-                nesting++;
-            } else if (ch == ')' && nesting > 0) {
-                nesting--;
-            } else if (nesting == 0) {
-                break;
-            }
-        }
-        
+static void string_skip_spaces(JSString *sp, int *pp) {
+    while (*pp < sp->len && string_get(sp, *pp) == ' ')
         *pp += 1;
-    }
 }
 
-static inline BOOL char_eq_ignorecase(char c1, char c2) {
-    if ((c1 >= 'A' && c1 <= 'Z') || (c1 >= 'a' && c1 <= 'z'))
-        return (c1 | 0x20) == (c2 | 0x20);
-    return c1 == c2;
-}
-
-static BOOL string_eq_ignorecase(JSString *s1, int p, const char *s2, int len) {
-    if (s1->len - p < len) return FALSE;
-
-    for (int i=0; i<len; i++) {
-        if (!char_eq_ignorecase(string_get(s1, p + i), s2[i]))
-            return FALSE;
-    }
-    return TRUE;
+static void string_skip_non_spaces(JSString *sp, int *pp) {
+    while (*pp < sp->len && string_get(sp, *pp) != ' ')
+        *pp += 1;
 }
 
 /* parse a numeric field with an optional sign if accept_sign is TRUE */
@@ -48440,34 +48389,6 @@ static int string_get_milliseconds(JSString *sp, int *pp, int64_t *pval) {
     return 0;
 }
 
-static int string_get_num_timezone(JSString *sp, int *pp, int64_t *pval)
-{
-    int p = *pp;
-    
-    int64_t o;
-    if (string_get_signed_digits(sp, &p, &o))
-        return -1;
-
-    if (o < -9959 || o > 9959) {
-        return -1;
-    }
-
-    int sgn = (o < 0) ? -1 : 1;
-    o = abs((int32_t) o);
-
-    if (string_get(sp, p) != ':') {
-        *pval = ((o / 100) * 60 + (o % 100)) * sgn;
-    } else {
-        p++;
-        int64_t o2;
-        if (string_get_digits(sp, &p, &o2))
-            return -1;
-        *pval = (o * 60 + o2) * sgn;
-    }
-
-    *pp = p;
-    return 0;
-}
 
 static int find_abbrev(JSString *sp, int p, const char *list, int count) {
     int n, i;
@@ -48485,30 +48406,27 @@ static int find_abbrev(JSString *sp, int p, const char *list, int count) {
     return -1;
 }
 
+static int string_get_month(JSString *sp, int *pp, int64_t *pval) {
+    int n;
+
+    string_skip_spaces(sp, pp);
+    n = find_abbrev(sp, *pp, month_names, 12);
+    if (n < 0)
+        return -1;
+
+    *pval = n;
+    *pp += 3;
+    return 0;
+}
+
 static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                              int argc, JSValueConst *argv)
 {
-    // This parses a date in the form:
-    //     Tuesday, 09-Nov-99 23:12:40 GMT
-    // or
-    //     Sat, 01-Jan-2000 08:00:00 GMT
-    // or
-    //     Sat, 01 Jan 2000 08:00:00 GMT
-    // or
-    //     01 Jan 99 22:00 +0100    (exceptions in rfc822/rfc2822)
-    // ### non RFC formats, added for Javascript:
-    //     [Wednesday] January 09 1999 23:12:40 GMT
-    //     [Wednesday] January 09 23:12:40 GMT 1999
-    //
-    // We ignore the weekday.
-    //
-    // Date parser adapted from KJS' implementation
-    // Source: https://invent.kde.org/frameworks/kjs/-/blob/fd9252ec4b270ebb4a299129099bce97f00dac0e/src/kjs/date_object.cpp#L1153
-
+    // parse(s)
     JSValue s, rv;
     int64_t fields[] = { 0, 1, 1, 0, 0, 0, 0 };
     double fields1[7];
-    int64_t tz = 0, hh, mm;
+    int64_t tz, hh, mm;
     double d;
     int p, i, c, sgn, l;
     JSString *sp;
@@ -48522,18 +48440,7 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
     
     sp = JS_VALUE_GET_STRING(s);
     p = 0;
-    string_skip_spaces_and_comments(sp, &p);
-
-    int end_of_digits = p;
-    if (string_get(sp, end_of_digits) == '+' || string_get(sp, end_of_digits) == '-') {
-        p++;
-    }
-    while (end_of_digits < sp->len && is_digit(string_get(sp, end_of_digits))) {
-        end_of_digits++;
-    }
-
-    if ((end_of_digits - p) > 0 &&
-        (string_get(sp, end_of_digits) == '-' || string_get(sp, end_of_digits) == 'T')) {
+    if (p < sp->len && (((c = string_get(sp, p)) >= '0' && c <= '9') || c == '+' || c == '-')) {
         /* ISO format */
         /* year field can be negative */
         if (string_get_signed_digits(sp, &p, &fields[0]))
@@ -48543,28 +48450,23 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
             if (p >= sp->len)
                 break;
             switch(i) {
-            case 1: // Year
-            case 2: // Month
+            case 1:
+            case 2:
                 c = '-';
                 break;
-            case 3: // Day
+            case 3:
                 c = 'T';
                 break;
-            case 4: // Hour
-            case 5: // Minute
+            case 4:
+            case 5:
                 c = ':';
                 break;
-            case 6: // Second
+            case 6:
                 c = '.';
                 break;
             }
-            if (string_get(sp, p) != c) {
-                // 2000T08:00Z
-                if (i < 3 && string_get(sp, p) == 'T') {
-                    i = 3;
-                }
-                else break;
-            }
+            if (string_get(sp, p) != c)
+                break;
             p++;
             if (i == 6) {
                 if (string_get_milliseconds(sp, &p, &fields[i]))
@@ -48574,9 +48476,6 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                     goto done;
             }
         }
-        // Hour only is invalid
-        if (i == 4) goto done;
-
         /* no time: UTC by default */
         is_local = (i > 3);
         fields[1] -= 1;
@@ -48614,250 +48513,68 @@ static JSValue js_Date_parse(JSContext *ctx, JSValueConst this_val,
                 goto done;
         }
     } else {
-        // Check contents of first words if not number
-        int64_t month = -1;
-        int word_start = p;
-        char c = string_get(sp, p);
-
-        while (!is_digit(c)) {
-            if (c == ' ' || c == '(') {
-                if (p - word_start >= 3) {
-                    month = find_abbrev(sp, word_start, month_names, 12);
-                }
-                string_skip_spaces_and_comments(sp, &p);
-                word_start = p;
-            } else {
-                p++;
-            }
-
-            c = string_get(sp, p);
-        }
-
-        // Missing delimiter between month and day (like "January29")?
-        if (month == -1 && word_start != p) {
-            month = find_abbrev(sp, word_start, month_names, 12);
-        }
-
-        string_skip_spaces_and_comments(sp, &p);
-        if (sp->len <= p)
+        /* toString or toUTCString format */
+        /* skip the day of the week */
+        string_skip_non_spaces(sp, &p);
+        string_skip_spaces(sp, &p);
+        if (p >= sp->len)
             goto done;
-
-        // '09-Nov-99 23:12:40 GMT'
-        int64_t day = 0;
-        if (string_get_digits(sp, &p, &day))
-            goto done;
-        
-        int64_t year = -1;
-        if (day > 31) {
-            if (string_get(sp, p) != '/')
+        c = string_get(sp, p);
+        if (c >= '0' && c <= '9') {
+            /* day of month first */
+            if (string_get_digits(sp, &p, &fields[2]))
                 goto done;
-            // looks like a YYYY/MM/DD date
-            p++;
-            if (sp->len <= p)
-                goto done;
-            
-            year = day;
-            if (string_get_digits(sp, &p, &month))
-                goto done;
-            month--;
-            
-            if (string_get(sp, p) != '/')
-                goto done;
-            p++;
-            if (sp->len <= p)
-                goto done;
-            
-            if (string_get_digits(sp, &p, &day))
-                goto done;
-        } else if (string_get(sp, p) == '/' && month == -1) {
-            p++;
-            // This looks like a MM/DD/YYYY date, not an RFC date.
-            month = day - 1; // 0-based
-            if (string_get_digits(sp, &p, &day))
-                goto done;
-            
-            if (!is_space_like(string_get(sp, p)))
-                goto done;
-            p++;
-            if (sp->len <= p)
+            if (string_get_month(sp, &p, &fields[1]))
                 goto done;
         } else {
-            if (string_get(sp, p) == '-') {
-                p++;
-            }
-            string_skip_spaces_and_comments(sp, &p);
-
-            // Jan,2000,08:00:00 UT
-            if (month == -1) {
-                month = find_abbrev(sp, p, month_names, 12);
-                if (month == -1)
-                    goto done;
-                
-                while (p < sp->len && !is_space_like(string_get(sp, p))) {
-                    p++;
-                }
-                if (sp->len <= p)
-                    goto done;
-                p++;
-            }
-        }
-
-        string_skip_spaces_and_comments(sp, &p);
-
-        if (year < 0) {
-            // Year following, e.g. 01 Jan 2000 08:00:00 UT
-            // Time following, e.g. Jan 01 08:00:00 UT 2000
-            if (sp->len <= p + 2 || string_get(sp, p + 2) != ':') {
-                if (string_get_digits(sp, &p, &year))
-                    goto done;
-            }
-        }
-
-        // Don't fail if the time is missing.
-        int64_t hour = 0;
-        int64_t minute = 0;
-        int64_t second = 0;
-
-        if (sp->len > p) {
-            // ' 23:12:40 GMT'
-            if (string_get(sp, p) == ':') {
-                // There was no year; the number was the hour.
-                year = -1;
-            } else if (is_space_like(string_get(sp, p))) {
-                p++;
-                string_skip_spaces_and_comments(sp, &p);
-            }
-
-            // Read a number? If not, this might be a timezone name.
-            if (!string_get_digits(sp, &p, &hour)) {
-                if (hour < 0 || hour > 23) {
-                    goto done;
-                }
-
-                if (sp->len <= p)
-                    goto done;
-                
-                // ':12:40 GMT'
-                if (string_get(sp, p) != ':') {
-                    goto done;
-                }
-                p++;
-
-                if (string_get_digits(sp, &p, &minute))
-                    goto done;
-
-                // ':40 GMT'
-                // seconds are optional in rfc822 + rfc2822
-                if (string_get(sp, p) == ':') {
-                    p++;
-
-                    if (string_get_digits(sp, &p, &second))
-                        goto done;
-
-                    // disallow trailing colon seconds
-                    if (string_get(sp, p) == ':') {
-                        goto done;
-                    }
-                } else if (string_get(sp, p) != ' ') {
-                    goto done;
-                }
-
-                string_skip_spaces_and_comments(sp, &p);
-
-                if (string_eq_ignorecase(sp, p, "AM", 2)) {
-                    if (hour > 12) {
-                        goto done;
-                    }
-                    if (hour == 12) {
-                        hour = 0;
-                    }
-                    p += 2;
-                    string_skip_spaces_and_comments(sp, &p);
-                } else if (string_eq_ignorecase(sp, p, "PM", 2)) {
-                    if (hour > 12) {
-                        goto done;
-                    }
-                    if (hour != 12) {
-                        hour += 12;
-                    }
-                    p += 2;
-                    string_skip_spaces_and_comments(sp, &p);
-                }
-            }
-        }
-
-        // Don't fail if the time zone is missing.
-        // Some websites omit the time zone
-        if (sp->len > p) {
-            if (string_get(sp, p) == '+' || string_get(sp, p) == '-') {
-                if (string_get_num_timezone(sp, &p, &tz))
-                    goto done;
-                is_local = FALSE;
-            } else {
-                for (int i = 0; i < sizeof(known_zones) / sizeof(struct KnownZone); i++) {
-                    if (string_eq_ignorecase(sp, p, known_zones[i].tzName, strlen(known_zones[i].tzName))) {
-                        tz = known_zones[i].tzOffset;
-                        p += strlen(known_zones[i].tzName);
-                        is_local = FALSE;
-
-                        // TZ offset (GMT+0)
-                        if (string_get(sp, p) == '+' || string_get(sp, p) == '-') {
-                            int64_t o;
-                            if (string_get_num_timezone(sp, &p, &o))
-                                goto done;
-                            
-                            tz += o;
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        string_skip_spaces_and_comments(sp, &p);
-
-        if (sp->len > p && year == -1) {
-            if (string_get_digits(sp, &p, &year))
+            /* month first */
+            if (string_get_month(sp, &p, &fields[1]))
+                goto done;
+            string_skip_spaces(sp, &p);
+            if (string_get_digits(sp, &p, &fields[2]))
                 goto done;
         }
-
-        string_skip_spaces_and_comments(sp, &p);
-
-        // Trailing garbage
-        if (sp->len > p) {
+        /* year */
+        string_skip_spaces(sp, &p);
+        if (string_get_signed_digits(sp, &p, &fields[0]))
             goto done;
-        }
 
-        // Y2K: Handle 2 digit years.
-        if (year >= 0 && year < 100) {
-            if (year < 50) {
-                year += 2000;
-            } else {
-                year += 1900;
+        /* hour, min, seconds */
+        string_skip_spaces(sp, &p);
+        for(i = 0; i < 3; i++) {
+            if (i == 1 || i == 2) {
+                if (p >= sp->len)
+                    goto done;
+                if (string_get(sp, p) != ':')
+                    goto done;
+                p++;
+            }
+            if (string_get_digits(sp, &p, &fields[3 + i]))
+                goto done;
+        }
+        // XXX: parse optional milliseconds?
+
+        /* parse the time zone offset if present: [+-]HHmm */
+        is_local = FALSE;
+        tz = 0;
+        for (tz = 0; p < sp->len; p++) {
+            sgn = string_get(sp, p);
+            if (sgn == '+' || sgn == '-') {
+                p++;
+                if (string_get_fixed_width_digits(sp, &p, 2, &hh))
+                    goto done;
+                if (string_get_fixed_width_digits(sp, &p, 2, &mm))
+                    goto done;
+                tz = hh * 60 + mm;
+                if (sgn == '-')
+                    tz = -tz;
+                break;
             }
         }
-
-        fields[0] = year;
-        fields[1] = month;
-        fields[2] = day;
-        fields[3] = hour;
-        fields[4] = minute;
-        fields[5] = second;
     }
-
-    // Validate fields
-    if (fields[1] < 0 || fields[1] > 11 ||
-        fields[2] < 1 || fields[2] > 31 ||
-        fields[3] < 0 || fields[3] > 24 ||
-        fields[4] < 0 || fields[4] > 59 ||
-        fields[5] < 0 || fields[5] > 59 ||
-        fields[6] < 0 || fields[6] > 999 ||
-        fields[3] * 3600 * 1000 + fields[4] * 60000 + fields[5] * 1000 + fields[6] > 24 * 3600 * 1000
-    ) goto done;
-
     for(i = 0; i < 7; i++)
         fields1[i] = fields[i];
-    d = set_date_fields(fields1, is_local) - (tz * 60000);
+    d = set_date_fields(fields1, is_local) - tz * 60000;
     rv = JS_NewFloat64(ctx, d);
 
 done:

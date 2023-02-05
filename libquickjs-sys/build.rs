@@ -55,8 +55,11 @@ fn main() {
     copy_dir::copy_dir(embed_path.join("quickjs"), &code_dir)
         .expect("Could not copy quickjs directory");
 
-    #[cfg(feature = "patched")]
-    apply_patches(&code_dir);
+    #[cfg(feature = "patch_bigint")]
+    apply_patch(&code_dir, "js-tobigint64-overflow.patch");
+
+    #[cfg(feature = "patch_dateparser")]
+    apply_patch(&code_dir, "dateparser.patch");
 
     std::fs::copy(
         embed_path.join("static-functions.c"),
@@ -115,27 +118,25 @@ fn main() {
         .expect("Could not copy bindings.rs");
 }
 
-#[cfg(feature = "patched")]
-fn apply_patches(code_dir: &PathBuf) {
-    use std::fs;
+#[cfg(any(feature = "patch_bigint", feature = "patch_dateparser"))]
+fn apply_patch(code_dir: &PathBuf, name: &str) {
+    eprintln!("Applying {name}");
+    let patch_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+        .join("embed")
+        .join("patches")
+        .join(name);
+    assert!(patch_path.exists(), "Could not open patch {name}");
 
-    eprintln!("Applying patches...");
-    let embed_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("embed");
-    let patches_path = embed_path.join("patches");
-    for patch in fs::read_dir(patches_path).expect("Could not open patches directory") {
-        let patch = patch.expect("Could not open patch");
-        eprintln!("Applying {:?}...", patch.file_name());
-        let status = std::process::Command::new("patch")
-            .current_dir(code_dir)
-            .arg("-i")
-            .arg(patch.path())
-            .spawn()
-            .expect("Could not apply patches")
-            .wait()
-            .expect("Could not apply patches");
-        assert!(
-            status.success(),
-            "Patch command returned non-zero exit code"
-        );
-    }
+    let status = std::process::Command::new("patch")
+        .current_dir(code_dir)
+        .arg("-i")
+        .arg(&patch_path)
+        .spawn()
+        .expect("Could not apply patches")
+        .wait()
+        .expect("Could not apply patches");
+    assert!(
+        status.success(),
+        "Patch command returned non-zero exit code"
+    );
 }

@@ -15,9 +15,10 @@ build = "build.rs"
 
 [features]
 bundled = ["cc", "copy_dir"]
-patched = ["bundled"]
-default = ["bundled"]
+patch_bigint = ["bundled"]
+patch_dateparser = ["bundled"]
 
+default = ["bundled"]
 system = ["bindgen"]
 
 [build-dependencies]

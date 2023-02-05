@@ -55,10 +55,10 @@ fn main() {
     copy_dir::copy_dir(embed_path.join("quickjs"), &code_dir)
         .expect("Could not copy quickjs directory");
 
-    #[cfg(feature = "patch_bigint")]
+    #[cfg(feature = "patch-bigint")]
     apply_patch(&code_dir, "js-tobigint64-overflow.patch");
 
-    #[cfg(feature = "patch_dateparser")]
+    #[cfg(feature = "patch-dateparser")]
     apply_patch(&code_dir, "dateparser.patch");
 
     std::fs::copy(
@@ -118,7 +118,7 @@ fn main() {
         .expect("Could not copy bindings.rs");
 }
 
-#[cfg(any(feature = "patch_bigint", feature = "patch_dateparser"))]
+#[cfg(any(feature = "patch-bigint", feature = "patch-dateparser"))]
 fn apply_patch(code_dir: &PathBuf, name: &str) {
     eprintln!("Applying {name}");
     let patch_path = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())

@@ -1,22 +1,24 @@
 [package]
 edition = "2021"
-name = "libquickjs-sys"
-description = "QuickJS Javascript Engine FFI bindings"
+name = "libquickjs-dtp-sys"
+description = "QuickJS Javascript Engine FFI bindings (with patched date parser)"
 version = "0.9.0"
 readme = "README.md"
-documentation = "https://docs.rs/quickjs-sys"
-repository = "https://github.com/theduke/quickjs-rs"
+repository = "https://github.com/Theta-Dev/quickjs-rs"
 license = "MIT"
-authors = ["Christoph Herzog <chris@theduke.at>"]
+authors = ["Christoph Herzog <chris@theduke.at>", "ThetaDev <t.testboy@gmail.com>"]
 categories = ["external-ffi-bindings"]
 keywords = ["quickjs"]
 
 build = "build.rs"
 
+[lib]
+name = "libquickjs_sys"
+
 [features]
 bundled = ["cc", "copy_dir"]
-patch_bigint = ["bundled"]
-patch_dateparser = ["bundled"]
+patch-bigint = ["bundled"]
+patch-dateparser = ["bundled"]
 
 default = ["bundled"]
 system = ["bindgen"]

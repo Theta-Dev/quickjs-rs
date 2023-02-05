@@ -2,6 +2,8 @@
 
 ## Master branch
 
+## v0.4.1 - 2023-02-05
+
 * Fixed use after free in `set_global` [#105](https://github.com/theduke/quickjs-rs/issues/105)
 * `add_callback` can now take `JsValue` arguments [#109](https://github.com/theduke/quickjs-rs/issues/109)
 * Enable chrono feature by default

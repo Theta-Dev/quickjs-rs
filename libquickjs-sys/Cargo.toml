@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "libquickjs-dtp-sys"
-description = "QuickJS Javascript Engine FFI bindings (with patched date parser)"
+description = "QuickJS Javascript Engine FFI bindings (with improved date parser)"
 version = "0.9.0"
 readme = "README.md"
 repository = "https://github.com/Theta-Dev/quickjs-rs"

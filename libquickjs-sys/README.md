@@ -10,8 +10,8 @@ See the [quick-js-dtp](https://crates.io/crates/quick-js-dtp) crate for a high-l
 wrapper.
 
 
-*Version 0.9.0*
-**Embedded VERSION: 2021-03-27**
+*Version 0.10.0*
+**Embedded VERSION: 2024-01-13**
 
 ## Embedded vs system
 

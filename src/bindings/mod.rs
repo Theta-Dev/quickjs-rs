@@ -19,6 +19,7 @@ use crate::{
 
 use value::{JsFunction, OwnedJsObject};
 
+#[allow(unused_imports)]
 pub use value::{JsCompiledFunction, OwnedJsValue};
 
 // JS_TAG_* constants from quickjs.

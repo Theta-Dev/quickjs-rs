@@ -578,7 +578,7 @@ fn test_bigint_serialize_bigint() {
     }
 }
 
-#[cfg(feature = "patch_dateparser")]
+#[cfg(feature = "patch-dateparser")]
 mod dateparser {
     use super::*;
 

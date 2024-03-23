@@ -2,6 +2,11 @@
 
 ## Master branch
 
+## v0.4.2 - 2024-03-23
+
+* Update to QuickJS `2024-01-13`
+* Update dependencies
+
 ## v0.4.1 - 2023-02-05
 
 * Fixed use after free in `set_global` [#105](https://github.com/theduke/quickjs-rs/issues/105)
